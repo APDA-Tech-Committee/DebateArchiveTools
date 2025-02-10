@@ -31,20 +31,20 @@ def parse_csv(filepath):
             deb2_status = row["N/V"] == "V"
             
             if deb1_name not in debaters:
-                debaters[deb1_name] = Debater(deb1_name, deb1_name, deb1_status)
+                debaters[deb1_name] = Debater(name=deb1_name, isVarsity=deb1_status)
             if deb2_name not in debaters:
-                debaters[deb2_name] = Debater(deb2_name, deb2_name, deb2_status)
+                debaters[deb2_name] = Debater(name=deb2_name,  isVarsity=deb2_status)
             
             if team_name not in teams:
-                teams[team_name] = Team(team_name, team_name, debaters[deb1_name], debaters[deb2_name])
+                teams[team_name] = Team(name=team_name, debater1=debaters[deb1_name], debater2=debaters[deb2_name])
             if opponent_name not in teams:
-                teams[opponent_name] = Team(opponent_name, opponent_name, None, None)
+                teams[opponent_name] = Team(name=opponent_name, debater1=None, debater2=None)
             
             if chair_name not in judges:
-                judges[chair_name] = Judge(chair_name, chair_name)
+                judges[chair_name] = Judge(name=chair_name)
             for wing in wings:
                 if wing not in judges:
-                    judges[wing] = Judge(wing, wing)
+                    judges[wing] = Judge(name=wing)
             
             round_data.append(row)  # Store round data for second pass
     
@@ -95,3 +95,49 @@ def parse_csv(filepath):
         "judges": judges,
         "rounds": list(rounds.values()),
     }
+
+
+def write_csv(filepath, data):
+    teams = data["teams"]
+    rounds = data["rounds"]
+    
+    header = [
+        "Round id", "Round", "Gov/Opp", "Win/Loss", "Team Name", "Opponent", 
+        "Chair", "Wing(s)", "Debater 1", "Debater 2", "N/V", "Speaks", "Ranks"
+    ]
+    
+    with open(filepath, "w", newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(header)
+        
+        for round_obj in rounds:
+            team = round_obj.team1
+            opponent = round_obj.team2
+            chair = round_obj.chair
+            wings = " - ".join(judge.name for judge in round_obj.judges)
+            
+            deb1 = team.debater1
+            deb2 = team.debater2
+            
+            deb1_speaks = round_obj.speaks["team1"]["debater1"]
+            deb2_speaks = round_obj.speaks["team1"]["debater2"]
+            deb1_ranks = round_obj.ranks["team1"]["debater1"]
+            deb2_ranks = round_obj.ranks["team1"]["debater2"]
+            
+            row = [
+                round_obj.id,
+                round_obj.roundNumber,
+                "G" if round_obj.gov else "O",
+                "W" if round_obj.winner else "L",
+                team.name,
+                opponent.name,
+                chair.name,
+                wings,
+                deb1.name,
+                deb2.name,
+                "V" if deb1.isVarsity and deb2.isVarsity else "N",
+                deb1_speaks,
+                deb1_ranks,
+            ]
+            
+            writer.writerow(row)

@@ -84,3 +84,50 @@ def deserialize_json(filepath):
         "judges": list(judges.values()),
         "rounds": list(rounds.values())
     }
+
+
+def serialize_json(output_filepath, data):
+    teams = {team.id: team for team in data["teams"]}
+    debaters = {debater.id: debater for debater in data["debaters"]}
+    judges = {judge.id: judge for judge in data["judges"]}
+    rounds = {round.id: round for round in data["rounds"]}
+    
+    tab_cards = {}
+    
+    for team in teams.values():
+        team_data = {
+            "debater_1": team.debater1.name,
+            "debater_1_status": "Varsity" if team.debater1.isVarsity else "Novice",
+            "rounds": []
+        }
+        
+        if team.debater2:
+            team_data["debater_2"] = team.debater2.name
+            team_data["debater_2_status"] = "Varsity" if team.debater2.isVarsity else "Novice"
+        
+        for round in team.rounds:
+            round_data = {
+                "round_id": round.id,
+                "round_number": round.roundNumber,
+                "chair": round.chair.name,
+                "side": "G" if round.gov else "O",
+                "result": "W" if round.winner else "L",
+                "wings": [judge.name for judge in round.judges],
+                "debater1": [(round.speaks["team1"]["debater1"], round.ranks["team1"]["debater1"])],
+                "debater2": [(round.speaks["team1"]["debater2"], round.ranks["team1"]["debater2"])],
+                "opponent": {"name": round.team2.name if round.team2 else "Unknown Team"}
+            }
+            
+            team_data["rounds"].append(round_data)
+        
+        tab_cards[team.id] = team_data
+    
+    json_data = {"tab_cards": tab_cards}
+    
+    with open(output_filepath, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, indent=4)
+    
+    return output_filepath
+
+
+

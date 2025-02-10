@@ -102,3 +102,49 @@ class ArchiveParser:
             "judges": self.judges,
             "rounds": self.rounds
         }
+
+class ArchiveGenerator:
+    def __init__(self, teams, debaters, judges, rounds):
+        self.tournament_name = "Generated Tournament"
+        self.teams = teams
+        self.debaters = debaters
+        self.judges = judges
+        self.rounds = rounds
+    
+    def generate_xml(self):
+        root = ET.Element("tournament", name=self.tournament_name)
+        participants_elem = ET.SubElement(root, "participants")
+        
+        for team in self.teams.values():
+            team_elem = ET.SubElement(participants_elem, "team", id=team.id, name=team.name)
+            
+            for debater in [team.debater1, team.debater2]:
+                categories = "varsity" if debater.isVarsity else ""
+                speaker_elem = ET.SubElement(team_elem, "speaker", id=debater.id, categories=categories)
+                speaker_elem.text = debater.name
+        
+        for judge in self.judges.values():
+            ET.SubElement(participants_elem, "adjudicator", id=judge.id, name=judge.name)
+        
+        for round_obj in self.rounds:
+            round_elem = ET.SubElement(root, "round", name=round_obj.name, number=str(round_obj.roundNumber))
+            debate_elem = ET.SubElement(round_elem, "debate", id=round_obj.id, chair=round_obj.chair.id if round_obj.chair else "", 
+                                       adjudicators=" ".join(j.id for j in round_obj.judges))
+            
+            for team_key, team in [("team1", round_obj.team1), ("team2", round_obj.team2)]:
+                side_elem = ET.SubElement(debate_elem, "side", team=team.id)
+                
+                if team_key == "team1" and round_obj.winner:
+                    ET.SubElement(side_elem, "ballot", rank="1")
+                
+                for debater_key, debater in [("debater1", team.debater1), ("debater2", team.debater2)]:
+                    if debater:
+                        speech_elem = ET.SubElement(side_elem, "speech", speaker=debater.id)
+                        ballot_elem = ET.SubElement(speech_elem, "ballot", rank=str(round_obj.ranks[team_key][debater_key]))
+                        ballot_elem.text = str(round_obj.speaks[team_key][debater_key])
+        
+        return ET.ElementTree(root)
+    
+    def save_to_file(self, filename):
+        tree = self.generate_xml()
+        tree.write(filename, encoding="utf-8", xml_declaration=True)

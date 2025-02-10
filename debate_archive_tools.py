@@ -1,44 +1,46 @@
 import argparse, os, sys
 import xml.etree.ElementTree as ET
 from models import *
-from XML import ArchiveParser
-from JSON import deserialize_json
-from CSV import parse_csv
+from XML import ArchiveParser, ArchiveGenerator
+from JSON import deserialize_json, serialize_json
+from CSV import parse_csv, write_csv
 import haikunator
-
-
 
 def main():
     parser = argparse.ArgumentParser(description='Process debate archive files.')
     parser.add_argument('filename', type=str, help='The name of the file to process')
     parser.add_argument('format', type=str, help='The format of the file (e.g., json, csv, xml)')
+    parser.add_argument('--output', type=str, help='The name of the output file (optional)')
     
     args = parser.parse_args()
     
     filename = args.filename
-    file_format = args.format
+    output_format = args.format.lower()
+    output_filename = args.output
     
-    print(f'Processing file: {filename} with format: {file_format}')
+    if not output_filename:
+        output_filename = "converted."+os.path.splitext(filename)[0] + '.' + output_format
+    
+    print(f'Converting: {filename} to {output_format}')
     
     input_format = os.path.splitext(filename)[1][1:].lower()
     if input_format == "xml":
         parser = ArchiveParser(filename)
         parser.parse()
         data = parser.get_parsed_data()
-    
     elif input_format == "json":
         data = deserialize_json(filename)
-
     elif input_format == "csv":
-         data = parse_csv(filename)
+        data = parse_csv(filename)
     
-    print(data)
-
-    for round in data["rounds"]:
-            if round.team1.debater1 is not None:
-                print(round.team1.debater1.name)
-
-        
+    if output_format == "xml":
+        writer = ArchiveGenerator(*data.values())
+        writer.generate_xml()
+        writer.save_to_file(output_filename)
+    elif output_format == "json":
+        serialize_json(output_filename, data)
+    elif output_format == "csv":
+        write_csv(output_filename, data)
 
 if __name__ == '__main__':
     main()
