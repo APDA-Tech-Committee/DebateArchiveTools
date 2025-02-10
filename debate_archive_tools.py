@@ -35,7 +35,8 @@ def main():
     print(data)
 
     for round in data["rounds"]:
-            print(round.team1.debater1.name)
+            if round.team1.debater1 is not None:
+                print(round.team1.debater1.name)
 
         
 

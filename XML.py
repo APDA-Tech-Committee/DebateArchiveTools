@@ -27,17 +27,17 @@ class ArchiveParser:
                 speaker_id = speaker_elem.attrib["id"]
                 speaker_name = speaker_elem.text
                 is_varsity = "varsity" in speaker_elem.attrib.get("categories", "").lower()
-                debater = Debater(speaker_id, speaker_name, is_varsity)
+                debater = Debater(id=speaker_id, name=speaker_name, isVarsity=is_varsity)
                 self.debaters[speaker_id] = debater
                 speakers.append(debater)
 
             if len(speakers) == 2:
-                self.teams[team_id] = Team(team_id, team_name, speakers[0], speakers[1])
+                self.teams[team_id] = Team(id=team_id, name=team_name, debater1=speakers[0], debater2=speakers[1])
 
         for adjudicator_elem in participants_elem.findall("adjudicator"):
             judge_id = adjudicator_elem.attrib["id"]
             judge_name = adjudicator_elem.attrib["name"]
-            judge = Judge(judge_id, judge_name)
+            judge = Judge(id=judge_id, name=judge_name)
             self.judges[judge_id] = judge
 
     def parse_rounds(self):
@@ -61,12 +61,21 @@ class ArchiveParser:
 
                 if len(sides) == 2:
                     team_ids = list(sides.keys())
-                    round_obj = Round(debate_id, round_name, sides[team_ids[0]], sides[team_ids[1]], chair, round_number)
+                    round_obj = Round(id=debate_id, name=round_name, team1=sides[team_ids[0]], team2=sides[team_ids[1]], chair=chair, gov=True, roundNumber=round_number)
                     round_obj.judges = judges
-                    
+                    first = True
+
                     for team_id, team in sides.items():
                         side_elem = next((s for s in debate_elem.findall("side") if s.attrib["team"] == team_id), None)
                         if side_elem:
+                            if first:
+                                first = False
+                                outer_ballot_elem = side_elem.find("ballot")
+                                if outer_ballot_elem is not None:
+                                    rank = int(outer_ballot_elem.attrib.get("rank", 0))
+                                    if rank == 1:
+                                        round_obj.winner = True
+                            
                             speech_elems = side_elem.findall("speech")
                             for speech_elem in speech_elems:
                                 speaker_id = speech_elem.attrib["speaker"]
